@@ -26,27 +26,35 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            perspective: 2000px; /* Perspektif lebih jauh untuk ubin besar */
+            perspective: 2000px;
+            overflow: hidden; /* Mencegah scrollbar muncul saat proses scaling */
+        }
+
+        #board-wrapper {
+            transition: transform 0.3s ease-out;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
         #board {
             position: relative;
-            width: 1200px; /* Diperlebar untuk ubin besar */
-            height: 850px;
+            width: 1100px; /* Ukuran dasar papan */
+            height: 800px;
             transform-style: preserve-3d;
         }
 
         .tile {
             position: absolute;
-            width: 80px;  /* Jauh lebih besar */
-            height: 110px; /* Jauh lebih besar */
+            width: 80px; 
+            height: 110px;
             background: #fdfdfd;
             border-radius: 8px;
             cursor: pointer;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 64px; /* Simbol sangat besar */
+            font-size: 64px;
             user-select: none;
             transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             box-shadow: 
@@ -115,20 +123,6 @@
             filter: brightness(1.2);
             transform: translateY(-2px);
         }
-
-        /* Skala Otomatis agar papan muat di layar */
-        @media (max-width: 1300px) {
-            #board { transform: scale(0.85); }
-        }
-        @media (max-width: 1100px) {
-            #board { transform: scale(0.7); }
-        }
-        @media (max-width: 900px) {
-            #board { transform: scale(0.55); }
-        }
-        @media (max-width: 700px) {
-            #board { transform: scale(0.4); }
-        }
     </style>
 </head>
 <body>
@@ -150,13 +144,15 @@
             </div>
         </div>
         <div class="flex gap-4">
-            <button onclick="hintMove()" class="btn-action px-6 py-3 bg-blue-600 rounded-xl shadow-lg">Bantuan</button>
-            <button onclick="initGame()" class="btn-action px-6 py-3 bg-red-600 rounded-xl shadow-lg">Mulai Ulang</button>
+            <button onclick="hintMove()" class="btn-action px-6 py-3 bg-blue-600 rounded-xl shadow-lg text-white">Bantuan</button>
+            <button onclick="initGame()" class="btn-action px-6 py-3 bg-red-600 rounded-xl shadow-lg text-white">Mulai Ulang</button>
         </div>
     </div>
 
     <div id="game-container">
-        <div id="board"></div>
+        <div id="board-wrapper">
+            <div id="board"></div>
+        </div>
     </div>
 
     <!-- Modal Menang -->
@@ -164,12 +160,11 @@
         <div class="bg-white/10 p-12 rounded-3xl border border-white/20 text-center backdrop-blur-xl">
             <h1 class="text-7xl font-black mb-4 text-yellow-400 drop-shadow-lg">MENANG!</h1>
             <p class="text-2xl mb-10 text-gray-300">Anda telah menyelesaikan tantangan ini.</p>
-            <button onclick="initGame()" class="px-12 py-5 bg-green-500 hover:bg-green-400 rounded-2xl font-black text-2xl transition-all shadow-2xl hover:scale-105 active:scale-95">MAIN LAGI</button>
+            <button onclick="initGame()" class="px-12 py-5 bg-green-500 hover:bg-green-400 rounded-2xl font-black text-2xl transition-all shadow-2xl hover:scale-105 active:scale-95 text-white">MAIN LAGI</button>
         </div>
     </div>
 
     <script>
-        // Ukuran konstanta yang jauh lebih besar
         const TILE_WIDTH = 80;
         const TILE_HEIGHT = 110;
 
@@ -187,39 +182,58 @@
         let seconds = 0;
         let timerInterval;
 
+        // Fungsi untuk menyesuaikan skala papan agar selalu muat di layar
+        function adjustScale() {
+            const container = document.getElementById('game-container');
+            const wrapper = document.getElementById('board-wrapper');
+            const board = document.getElementById('board');
+            
+            const padding = 40;
+            const availableWidth = container.clientWidth - padding;
+            const availableHeight = container.clientHeight - padding;
+            
+            const boardWidth = 1100;
+            const boardHeight = 800;
+            
+            const scaleX = availableWidth / boardWidth;
+            const scaleY = availableHeight / boardHeight;
+            
+            // Gunakan skala terkecil agar tidak terpotong sama sekali
+            const scale = Math.min(scaleX, scaleY, 1); // Maksimal skala 1 agar tidak pecah di layar raksasa
+            
+            wrapper.style.transform = `scale(${scale})`;
+        }
+
+        window.addEventListener('resize', adjustScale);
+
         function generateLayout() {
             const layout = [];
-            
-            // Layer 0 (Dasar 12x8)
+            // Layer 0
             for (let r = 0; r < 8; r++) {
                 for (let c = 0; c < 12; c++) {
                     if ((r === 0 || r === 7) && (c < 2 || c > 9)) continue;
                     layout.push({x: c, y: r, z: 0});
                 }
             }
-
             // Layer 1
             for (let r = 1; r < 7; r++) {
                 for (let c = 3; c < 9; c++) {
                     layout.push({x: c + 0.5, y: r + 0.5, z: 1});
                 }
             }
-
             // Layer 2
             for (let r = 2; r < 6; r++) {
                 for (let c = 4; c < 8; c++) {
                     layout.push({x: c + 1, y: r + 1, z: 2});
                 }
             }
-
             // Layer 3
             for (let r = 3; r < 5; r++) {
                 for (let c = 5; c < 7; c++) {
                     layout.push({x: c + 1.5, y: r + 1.5, z: 3});
                 }
             }
-
-            // Ubin Paling Atas (Mahkota)
+            // Top
             layout.push({x: 6.5, y: 4, z: 4});
 
             if (layout.length % 2 !== 0) layout.pop();
@@ -260,13 +274,15 @@
             renderBoard();
             startTimer();
             updateRemaining();
+            
+            // Jalankan penyesuaian skala setelah board dirender
+            setTimeout(adjustScale, 10);
         }
 
         function renderBoard() {
             const board = document.getElementById('board');
             board.innerHTML = '';
 
-            // Render ubin secara berurutan berdasarkan Z untuk tumpukan yang benar
             tiles.sort((a, b) => a.z - b.z || a.y - b.y || a.x - b.x).forEach(tile => {
                 if (tile.matched) return;
 
@@ -274,15 +290,13 @@
                 el.className = 'tile';
                 el.innerHTML = tile.face;
                 
-                // Kalkulasi posisi dengan spasi yang disesuaikan untuk ubin besar
                 const leftPos = tile.x * (TILE_WIDTH + 8);
-                const topPos = tile.y * (TILE_HEIGHT - 20); // Merapatkan tumpukan vertikal
+                const topPos = tile.y * (TILE_HEIGHT - 22);
                 
                 el.style.left = `${leftPos}px`;
                 el.style.top = `${topPos}px`;
                 el.style.setProperty('--z', tile.z * 100 + tile.y);
                 
-                // Efek 3D lebih berani
                 el.style.transform = `translateZ(${tile.z * 12}px) translateX(${tile.z * -4}px) translateY(${tile.z * -4}px)`;
 
                 el.onclick = () => handleTileClick(tile, el);
@@ -292,7 +306,6 @@
         }
 
         function isSelectable(tile) {
-            // Cek ubin di atasnya
             const onTop = tiles.some(t => 
                 !t.matched && 
                 t.z > tile.z && 
@@ -301,7 +314,6 @@
             );
             if (onTop) return false;
 
-            // Cek tetangga kiri/kanan
             const blockedLeft = tiles.some(t => 
                 !t.matched && t.z === tile.z && t.x === tile.x - 1 && Math.abs(t.y - tile.y) < 1
             );
@@ -399,9 +411,8 @@
                     }
                 }
             }
-            // Pesan bantuan jika buntu
             const el = document.createElement('div');
-            el.className = "fixed top-20 left-1/2 -translate-x-1/2 bg-red-600 px-6 py-3 rounded-full font-bold shadow-2xl z-[100] animate-bounce";
+            el.className = "fixed top-24 left-1/2 -translate-x-1/2 bg-red-600 text-white px-6 py-3 rounded-full font-bold shadow-2xl z-[100] animate-bounce";
             el.innerText = "Tidak ada gerakan tersisa! Tekan Mulai Ulang.";
             document.body.appendChild(el);
             setTimeout(() => el.remove(), 3000);
